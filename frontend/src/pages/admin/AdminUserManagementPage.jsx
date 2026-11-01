@@ -12,7 +12,6 @@ export default function AdminUserManagementPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   
-  // Pagination states
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -20,7 +19,6 @@ export default function AdminUserManagementPage() {
     totalPages: 0
   });
   
-  // Form states
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -31,10 +29,8 @@ export default function AdminUserManagementPage() {
     is_admin: true
   });
   
-  // Add a refresh flag state
   const [refresh, setRefresh] = useState(0);
   
-  // Request cancellation refs
   const abortControllersRef = useRef({});
   
   const fetchUsers = useCallback(async () => {
@@ -42,12 +38,10 @@ export default function AdminUserManagementPage() {
     setError(null);
     
     try {
-      // Cancel previous request if it exists
       if (abortControllersRef.current.users) {
         abortControllersRef.current.users.abort();
       }
       
-      // Create a new controller
       abortControllersRef.current.users = new AbortController();
       
       const response = await adminUserService.getAllAdminUsers(
@@ -61,11 +55,9 @@ export default function AdminUserManagementPage() {
         return;
       }
       
-      // Safely extract users from the response
       const usersData = response.data.items || response.data || [];
       setUsers(Array.isArray(usersData) ? usersData : []);
       
-      // Update pagination info if it's available in the response
       if (response.data.meta) {
         setPagination(prev => ({
           ...prev,
@@ -89,14 +81,12 @@ export default function AdminUserManagementPage() {
     // cleanup below still aborts whatever controllers are current at that time.
     const controllers = abortControllersRef.current;
 
-    // Create abort controllers for our API requests
     controllers.users = new AbortController();
     controllers.roles = new AbortController();
     
     fetchUsers();
     fetchRoles();
     
-    // Clean up function - cancel any in-flight requests when component unmounts
     return () => {
       Object.values(controllers).forEach(controller => {
         if (controller) controller.abort();
@@ -104,39 +94,31 @@ export default function AdminUserManagementPage() {
     };
   }, [refresh, fetchUsers]); // fetchUsers changes with pagination.page/limit
   
-  // Function to trigger a refresh
   const triggerRefresh = () => {
     setRefresh(prev => prev + 1);
   };
-  
-  
+
   const fetchRoles = async () => {
     try {
-      // Cancel previous request if it exists
       if (abortControllersRef.current.roles) {
         abortControllersRef.current.roles.abort();
       }
       
-      // Create a new controller
       abortControllersRef.current.roles = new AbortController();
       
       const response = await adminUserService.getRoles(
         abortControllersRef.current.roles.signal
       );
       
-      // Ensure roles is always an array
       const rolesData = response.data?.items || response.data || [];
       setRoles(Array.isArray(rolesData) ? rolesData : []);
     } catch (err) {
-      // Only log error if it's not an abort error
       if (err.name !== 'AbortError') {
-        // Silently handle errors
         setRoles([]); // Set roles to empty array on error
       }
     }
   };
   
-  // Pagination handlers
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= pagination.totalPages) {
       setPagination(prev => ({...prev, page: newPage}));
@@ -160,7 +142,6 @@ export default function AdminUserManagementPage() {
     e.preventDefault();
     try {
       
-      // First make the API call
       const response = await adminUserService.createAdminUser(formData);
       
       // Then update UI with the actual data from response
@@ -173,31 +154,25 @@ export default function AdminUserManagementPage() {
       fetchUsers();
     } catch (err) {
       console.error('Error creating admin user:', err);
-      // Log more detailed error information
       if (err.response) {
         console.error('Error response status:', err.response.status);
         console.error('Error details:', err.response.data);
         
-        // Format validation errors properly
         if (err.response.status === 422 && err.response.data.detail) {
-          // Handle pydantic validation errors
           if (Array.isArray(err.response.data.detail)) {
             const errorMessages = err.response.data.detail.map(error => 
               `${error.loc[1]}: ${error.msg}`
             ).join(', ');
             setError(`Validation error: ${errorMessages}`);
           } else if (typeof err.response.data.detail === 'object') {
-            // Handle other object-type errors
             setError(`Validation error: ${JSON.stringify(err.response.data.detail)}`);
           } else {
-            // String errors
             setError(err.response.data.detail);
           }
           return;
         }
       }
       
-      // Set a more descriptive error message from the response if available
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to create admin user. Please check network connection and try again.';
       setError(typeof errorMessage === 'object' ? JSON.stringify(errorMessage) : errorMessage);
     }
@@ -207,7 +182,7 @@ export default function AdminUserManagementPage() {
     e.preventDefault();
     try {
       
-      // Optimistic UI update - update the user in state
+      // Optimistic: show it now, roll back below if the call fails.
       setUsers(prevUsers => 
         prevUsers.map(user => 
           user.id === currentUser.id 
@@ -223,31 +198,24 @@ export default function AdminUserManagementPage() {
       setIsEditUserModalOpen(false);
       resetForm();
       
-      // Actual API call
       await adminUserService.updateAdminUser(currentUser.id, formData);
       
-      // Fetch to ensure we have the latest data
       fetchUsers();
     } catch (err) {
       console.error('Error updating admin user:', err);
-      // Log more detailed error information
       if (err.response) {
         console.error('Error response status:', err.response.status);
         console.error('Error details:', err.response.data);
         
-        // Format validation errors properly
         if (err.response.status === 422 && err.response.data.detail) {
-          // Handle pydantic validation errors
           if (Array.isArray(err.response.data.detail)) {
             const errorMessages = err.response.data.detail.map(error => 
               `${error.loc[1]}: ${error.msg}`
             ).join(', ');
             setError(`Validation error: ${errorMessages}`);
           } else if (typeof err.response.data.detail === 'object') {
-            // Handle other object-type errors
             setError(`Validation error: ${JSON.stringify(err.response.data.detail)}`);
           } else {
-            // String errors
             setError(err.response.data.detail);
           }
           // Undo optimistic update on validation error
@@ -256,29 +224,24 @@ export default function AdminUserManagementPage() {
         }
       }
       
-      // Set a more descriptive error message from the response if available
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to update admin user. Please check network connection and try again.';
       setError(typeof errorMessage === 'object' ? JSON.stringify(errorMessage) : errorMessage);
-      // Undo optimistic update on error
       fetchUsers();
     }
   };
   
   const handleDeleteUser = async () => {
     try {
-      // Optimistic UI update - remove the user from state
+      // Optimistic: show it now, roll back below if the call fails.
       setUsers(prevUsers => prevUsers.filter(user => user.id !== currentUser.id));
       setIsDeleteModalOpen(false);
       setCurrentUser(null);
       
-      // Actual API call
       await adminUserService.deleteAdminUser(currentUser.id);
       
-      // No need to refresh if deletion was successful
     } catch (err) {
       console.error('Error deleting admin user:', err);
       setError(err.message || 'Failed to delete admin user. Please check network connection and try again.');
-      // Undo optimistic update on error
       triggerRefresh();
     }
   };
@@ -359,7 +322,6 @@ export default function AdminUserManagementPage() {
         </div>
       )}
       
-      {/* Users Table */}
       <div className="mt-8 flex flex-col">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
@@ -438,7 +400,6 @@ export default function AdminUserManagementPage() {
         </div>
       </div>
       
-      {/* Pagination Controls */}
       <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
         <div className="flex flex-1 justify-between sm:hidden">
           <button
@@ -489,7 +450,6 @@ export default function AdminUserManagementPage() {
                 <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
               </button>
               {[...Array(Math.min(5, pagination.totalPages))].map((_, i) => {
-                // Calculate the page number to display
                 let pageNum;
                 if (pagination.totalPages <= 5) {
                   pageNum = i + 1;
@@ -528,7 +488,6 @@ export default function AdminUserManagementPage() {
         </div>
       </div>
       
-      {/* Add User Modal */}
       {isAddUserModalOpen && (
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -651,7 +610,6 @@ export default function AdminUserManagementPage() {
         </div>
       )}
       
-      {/* Edit User Modal */}
       {isEditUserModalOpen && (
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -772,7 +730,6 @@ export default function AdminUserManagementPage() {
         </div>
       )}
       
-      {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">

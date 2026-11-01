@@ -13,7 +13,6 @@ export default function AdminRoleManagementPage() {
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState(null);
   
-  // Pagination states
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -21,20 +20,16 @@ export default function AdminRoleManagementPage() {
     totalPages: 0
   });
   
-  // Form states
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     is_active: true
   });
   
-  // Permission selection state
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   
-  // Add a refresh flag state
   const [refresh, setRefresh] = useState(0);
   
-  // Request cancellation refs
   const abortControllersRef = useRef({});
   
   const fetchRoles = useCallback(async () => {
@@ -42,12 +37,10 @@ export default function AdminRoleManagementPage() {
     setError(null);
     
     try {
-      // Cancel previous request if it exists
       if (abortControllersRef.current.roles) {
         abortControllersRef.current.roles.abort();
       }
       
-      // Create a new controller
       abortControllersRef.current.roles = new AbortController();
       
       const response = await roleService.getAllRoles(
@@ -58,7 +51,6 @@ export default function AdminRoleManagementPage() {
       
       setRoles(response.data.items || response.data);
       
-      // Update pagination info if it's available in the response
       if (response.data.meta) {
         setPagination(prev => ({
           ...prev,
@@ -71,7 +63,6 @@ export default function AdminRoleManagementPage() {
       if (err.name !== 'AbortError' && err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
         console.error('Error fetching roles:', err);
         
-        // Improved error message with more detail
         if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
           // Just log the error, don't set it to state
           console.warn('Request timed out while loading roles. The server might be busy.');
@@ -83,7 +74,6 @@ export default function AdminRoleManagementPage() {
           console.warn('Failed to fetch roles, but continuing silently');
         }
         
-        // Set empty roles array to prevent UI errors
         setRoles(prev => (prev.length === 0 ? [] : prev));
       }
     } finally {
@@ -96,14 +86,12 @@ export default function AdminRoleManagementPage() {
     // cleanup below still aborts whatever controllers are current at that time.
     const controllers = abortControllersRef.current;
 
-    // Create abort controllers for our API requests
     controllers.roles = new AbortController();
     controllers.permissions = new AbortController();
     
     fetchRoles();
     fetchPermissions();
     
-    // Clean up function - cancel any in-flight requests when component unmounts
     return () => {
       Object.values(controllers).forEach(controller => {
         if (controller) controller.abort();
@@ -111,20 +99,16 @@ export default function AdminRoleManagementPage() {
     };
   }, [refresh, fetchRoles]); // fetchRoles changes with pagination.page/limit
   
-  // Function to trigger a refresh
   const triggerRefresh = () => {
     setRefresh(prev => prev + 1);
   };
-  
-  
+
   const fetchPermissions = async () => {
     try {
-      // Cancel previous request if it exists
       if (abortControllersRef.current.permissions) {
         abortControllersRef.current.permissions.abort();
       }
       
-      // Create a new controller
       abortControllersRef.current.permissions = new AbortController();
       
       const response = await roleService.getPermissions(
@@ -133,10 +117,8 @@ export default function AdminRoleManagementPage() {
       
       setPermissions(response.data);
     } catch (err) {
-      // Only log error if it's not an abort error
       if (err.name !== 'AbortError' && err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
         console.warn('Error fetching permissions:', err);
-        // Set empty permissions array to prevent UI errors
         setPermissions([]);
       }
     }
@@ -153,7 +135,7 @@ export default function AdminRoleManagementPage() {
   const handleAddRole = async (e) => {
     e.preventDefault();
     try {
-      // Optimistic UI update - add the new role to the state
+      // Optimistic: show it now, roll back below if the call fails.
       const tempRole = {
         ...formData,
         id: Date.now(), // Temporary ID until server response
@@ -164,15 +146,12 @@ export default function AdminRoleManagementPage() {
       setIsAddRoleModalOpen(false);
       resetForm();
       
-      // Actual API call
       await roleService.createRole(formData);
       
-      // Refresh data from server to get the real ID
       triggerRefresh();
     } catch (err) {
       console.error('Error creating role:', err);
       setError(err.message || 'Failed to create role. Please check network connection and try again.');
-      // Undo optimistic update on error
       triggerRefresh();
     }
   };
@@ -180,7 +159,7 @@ export default function AdminRoleManagementPage() {
   const handleEditRole = async (e) => {
     e.preventDefault();
     try {
-      // Optimistic UI update - update the role in state
+      // Optimistic: show it now, roll back below if the call fails.
       setRoles(prevRoles => 
         prevRoles.map(role => 
           role.id === currentRole.id 
@@ -192,35 +171,27 @@ export default function AdminRoleManagementPage() {
       setIsEditRoleModalOpen(false);
       resetForm();
       
-      // Actual API call
       await roleService.updateRole(currentRole.id, formData);
       
-      // No need to refresh - optimistic update should be correct
-      // But if you want server validation, uncomment the next line
-      // triggerRefresh();
     } catch (err) {
       console.error('Error updating role:', err);
       setError(err.message || 'Failed to update role. Please check network connection and try again.');
-      // Undo optimistic update on error
       triggerRefresh();
     }
   };
   
   const handleDeleteRole = async () => {
     try {
-      // Optimistic UI update - remove the role from state
+      // Optimistic: show it now, roll back below if the call fails.
       setRoles(prevRoles => prevRoles.filter(role => role.id !== currentRole.id));
       setIsDeleteModalOpen(false);
       setCurrentRole(null);
       
-      // Actual API call
       await roleService.deleteRole(currentRole.id);
       
-      // No need to refresh if deletion was successful
     } catch (err) {
       console.error('Error deleting role:', err);
       setError(err.message || 'Failed to delete role. Please check network connection and try again.');
-      // Undo optimistic update on error
       triggerRefresh();
     }
   };
@@ -237,7 +208,6 @@ export default function AdminRoleManagementPage() {
   
   const handleSavePermissions = async () => {
     try {
-      // Optimistic UI update
       setRoles(prevRoles => 
         prevRoles.map(role => {
           if (role.id === currentRole.id) {
@@ -255,34 +225,27 @@ export default function AdminRoleManagementPage() {
       
       setIsPermissionModalOpen(false);
       
-      // First, get current role's permissions
       const roleDetail = await roleService.getRole(currentRole.id);
       const currentPermissions = (roleDetail.data.permissions || []).map((permission) =>
         typeof permission === 'string' ? permission : permission.id
       );
       
-      // Permissions to add
       const permissionsToAdd = selectedPermissions.filter(p => !currentPermissions.includes(p));
       
-      // Permissions to remove
       const permissionsToRemove = currentPermissions.filter(p => !selectedPermissions.includes(p));
       
-      // Add new permissions
       for (const permId of permissionsToAdd) {
         await roleService.assignPermission(currentRole.id, { permission_id: permId });
       }
       
-      // Remove old permissions
       for (const permId of permissionsToRemove) {
         await roleService.removePermission(currentRole.id, permId);
       }
       
-      // Refresh data from server to ensure all permission changes are reflected correctly
       triggerRefresh();
     } catch (err) {
       console.error('Error updating permissions:', err);
       setError(err.message || 'Failed to update permissions. Please check network connection and try again.');
-      // Undo optimistic update on error
       triggerRefresh();
     }
   };
@@ -307,7 +270,6 @@ export default function AdminRoleManagementPage() {
     try {
       const roleObjectId = role._id || role.id;
       const roleDetail = await roleService.getRole(roleObjectId);
-      // Set selected permissions based on the role's current permissions
       setSelectedPermissions(
         (roleDetail.data.permissions || []).map((permission) =>
           typeof permission === 'string' ? permission : permission.id
@@ -329,7 +291,6 @@ export default function AdminRoleManagementPage() {
     setCurrentRole(null);
   };
   
-  // Pagination handlers
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= pagination.totalPages) {
       setPagination(prev => ({...prev, page: newPage}));
@@ -370,7 +331,6 @@ export default function AdminRoleManagementPage() {
         </div>
       </div>
       
-      {/* Error message */}
       {error && error.trim() !== '' && (
         <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
           <div className="flex justify-between items-center">
@@ -394,7 +354,6 @@ export default function AdminRoleManagementPage() {
         </div>
       )}
       
-      {/* Roles Table */}
       <div className="mt-8 flex flex-col">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
@@ -474,7 +433,6 @@ export default function AdminRoleManagementPage() {
         </div>
       </div>
       
-      {/* Pagination Controls */}
       <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
         <div className="flex flex-1 justify-between sm:hidden">
           <button
@@ -525,7 +483,6 @@ export default function AdminRoleManagementPage() {
                 <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
               </button>
               {[...Array(Math.min(5, pagination.totalPages))].map((_, i) => {
-                // Calculate the page number to display
                 let pageNum;
                 if (pagination.totalPages <= 5) {
                   pageNum = i + 1;
@@ -564,7 +521,6 @@ export default function AdminRoleManagementPage() {
         </div>
       </div>
       
-      {/* Add Role Modal */}
       {isAddRoleModalOpen && (
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -638,7 +594,6 @@ export default function AdminRoleManagementPage() {
         </div>
       )}
       
-      {/* Edit Role Modal */}
       {isEditRoleModalOpen && (
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -712,7 +667,6 @@ export default function AdminRoleManagementPage() {
         </div>
       )}
       
-      {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -756,7 +710,6 @@ export default function AdminRoleManagementPage() {
         </div>
       )}
       
-      {/* Permissions Modal */}
       {isPermissionModalOpen && (
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">

@@ -16,6 +16,11 @@ import { toast } from 'react-toastify';
 import pollingService from '../../services/polling';
 import { API_ORIGIN } from '../../config';
 
+function resolveApiUrl() {
+  const base = API_ORIGIN.endsWith('/') ? API_ORIGIN.slice(0, -1) : API_ORIGIN;
+  return base.includes('/api/v1') ? base : `${base}/api/v1`;
+}
+
 function isUnavailableEndpointStatus(status) {
   return status === 404 || status === 405;
 }
@@ -40,17 +45,10 @@ export default function AdminDashboardPage() {
     setError(null);
     
     try {
-      // Get base API URL
-      let baseUrl = API_ORIGIN;
-      // Remove trailing slash if present
-      baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      // Add /api/v1 only if it's not already included
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
+      const apiUrl = resolveApiUrl();
       
       const token = localStorage.getItem('token');
-      
-      
-      // Add timestamp to avoid caching
+
       const timestamp = new Date().getTime();
       const statsUrl = `${apiUrl}/admin/dashboard/stats?_t=${timestamp}`;
       
@@ -62,8 +60,7 @@ export default function AdminDashboardPage() {
           'Pragma': 'no-cache'
         }
       });
-      
-      
+
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         setStats(statsData);
@@ -87,7 +84,6 @@ export default function AdminDashboardPage() {
         }
       }
       
-      // Fetch activity data
       const activityUrl = `${apiUrl}/admin/dashboard/recent-activity?_t=${timestamp}`;
       
       const activityResponse = await fetch(activityUrl, {
@@ -102,9 +98,7 @@ export default function AdminDashboardPage() {
       if (activityResponse.ok) {
         const activityData = await activityResponse.json();
         
-        // Process the activity data to extract user information
-        const processedActivityData = processActivityData(activityData);
-        setRecentActivity(processedActivityData);
+        setRecentActivity(processActivityData(activityData));
       } else {
         const errorText = await activityResponse.text();
         console.error(`Failed to fetch activity: ${activityResponse.status}`, errorText);
@@ -119,7 +113,6 @@ export default function AdminDashboardPage() {
       console.error('Error fetching dashboard data:', err);
       setError(err.message);
       
-      // Set empty values instead of mock data
       setStats({
         totalAlumni: 0,
         pendingVerifications: 0,
@@ -128,7 +121,6 @@ export default function AdminDashboardPage() {
       });
       setRecentActivity([]);
       
-      // Show error toast
       toast.error(`Failed to load dashboard data: ${err.message}`);
     } finally {
       setLoading(false);
@@ -136,19 +128,14 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
-    // Start polling as admin
-    pollingService.stopPolling(); // Stop any existing polling
-    pollingService.startPolling('admin'); // Start with admin role
+    pollingService.stopPolling();
+    pollingService.startPolling('admin');
     
-    // Add listener for document request notifications specifically
     const unsubscribe = pollingService.on('document_requested', (data) => {
-      // Update UI or fetch latest data
-      fetchDashboardData(); // Refresh dashboard data when new document request comes in
+      fetchDashboardData();
       
-      // Build a more informative toast message
       let toastMessage = data.message;
       
-      // Check for alumni info in the notification data
       if (data.data) {
         const alumniName = data.data.alumni_name;
         const studentId = data.data.student_id;
@@ -162,7 +149,6 @@ export default function AdminDashboardPage() {
         }
       }
       
-      // Show toast notification
       toast.info(toastMessage, {
         position: "top-right",
         autoClose: 5000,
@@ -173,7 +159,6 @@ export default function AdminDashboardPage() {
       });
     });
     
-    // Add generic message listener too
     const messageUnsubscribe = pollingService.on('message', () => {});
     
     return () => {
@@ -183,39 +168,21 @@ export default function AdminDashboardPage() {
     };
   }, [fetchDashboardData]);
 
-  // Add auto-refresh functionality
   useEffect(() => {
-    // Initial fetch
     fetchDashboardData();
     
-    // Setup auto-refresh interval - every 60 seconds
-    const refreshInterval = setInterval(() => {
-      fetchDashboardData();
-    }, 60000); // 60 seconds
+    const refreshInterval = setInterval(fetchDashboardData, 60000);
     
-    // Clear interval on component unmount
-    return () => {
-      clearInterval(refreshInterval);
-    };
+    return () => clearInterval(refreshInterval);
   }, [fetchDashboardData]);
 
   const fetchRecentActivity = useCallback(async () => {
     try {
+      const apiUrl = resolveApiUrl();
       
-      // Get the API URL
-      let baseUrl = API_ORIGIN;
-      // Remove trailing slash if present
-      baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      // Add /api/v1 only if it's not already included
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
-      
-      // Add a timestamp parameter to prevent caching
       const timestamp = new Date().getTime();
       
-      const url = `${apiUrl}/admin/dashboard/recent-activity?_t=${timestamp}`;
-      
-      // Fetch recent activity
-      const activityResponse = await fetch(url, {
+      const activityResponse = await fetch(`${apiUrl}/admin/dashboard/recent-activity?_t=${timestamp}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -231,12 +198,7 @@ export default function AdminDashboardPage() {
         throw new Error(`Failed to fetch recent activity: ${activityResponse.status}`);
       }
       
-      const activityData = await activityResponse.json();
-      
-      // Process the data to extract user information
-      const processedData = processActivityData(activityData);
-      
-      setRecentActivity(processedData);
+      setRecentActivity(processActivityData(await activityResponse.json()));
     } catch (err) {
       console.error('Error fetching recent activity:', err);
     }
@@ -244,18 +206,11 @@ export default function AdminDashboardPage() {
 
   const fetchUserActivity = useCallback(async () => {
     try {
-      // Get the API URL
-      let baseUrl = API_ORIGIN;
-      // Remove trailing slash if present
-      baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      // Add /api/v1 only if it's not already included
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
+      const apiUrl = resolveApiUrl();
       
-      // Add a timestamp parameter to prevent caching
       const timestamp = new Date().getTime();
       
-      // Use the documents/activities endpoint which is guaranteed to exist
-      const response = await fetch(`${apiUrl}/documents/activities?_t=${timestamp}`, {
+      const activityResponse = await fetch(`${apiUrl}/documents/activities?_t=${timestamp}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -263,8 +218,7 @@ export default function AdminDashboardPage() {
         }
       });
       
-      if (!response.ok) {
-        // If specific endpoint fails, try the general activity endpoint as fallback
+      if (!activityResponse.ok) {
         const fallbackResponse = await fetch(`${apiUrl}/admin/dashboard/recent-activity`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -272,19 +226,13 @@ export default function AdminDashboardPage() {
         });
         
         if (fallbackResponse.ok) {
-          const data = await fallbackResponse.json();
-          // Process the data to extract user information
-          const processedData = processActivityData(data);
-          setRecentActivity(processedData);
+          setRecentActivity(processActivityData(await fallbackResponse.json()));
         } else {
-          console.error('Failed to fetch user activity:', response.status);
+          console.error('Failed to fetch user activity:', activityResponse.status);
           setRecentActivity([]);
         }
       } else {
-        const data = await response.json();
-        // Process the data to extract user information
-        const processedData = processActivityData(data);
-        setRecentActivity(processedData);
+        setRecentActivity(processActivityData(await activityResponse.json()));
       }
     } catch (err) {
       console.error('Error fetching user activity:', err);
@@ -295,57 +243,44 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (isAdminUser) {
-      // This is kept for backward compatibility
-      // The initial fetch and subsequent refreshes are now handled by the auto-refresh useEffect above
-    } else {
-      // For regular users, we don't need to fetch admin stats
-      // but we should still fetch their activity
+    // Admin data is loaded by the auto-refresh effect above.
+    if (!isAdminUser) {
       setLoading(true);
       fetchUserActivity();
     }
     
-    // Check if coming from verification page with refresh flag
     if (location.state?.refreshActivity) {
-      // Show toast notification for verification
       if (location.state?.verifiedUser) {
         toast.success(`User ${location.state.verifiedUser} verified successfully`);
       }
       
-      // Show toast notification for document upload
       if (location.state?.documentUploaded) {
         toast.success(`Document "${location.state.documentTitle || 'New document'}" uploaded successfully`);
       }
       
-      // Explicitly fetch the latest activity data
       if (isAdminUser) {
         fetchRecentActivity();
       } else {
         fetchUserActivity();
       }
       
-      // Clear the state to prevent repeated refreshes
       history.replaceState({}, document.title);
     }
   }, [location, isAdminUser, fetchRecentActivity, fetchUserActivity]);
 
-  // Function to pre-process activity data from backend
   const processActivityData = (activities) => {
     return activities.map(activity => {
       const processed = { ...activity };
       
-      // Try to parse data field if it's a string
       if (typeof processed.data === 'string') {
         try {
           processed.data = JSON.parse(processed.data);
         } catch {
-          // Keep as is if parsing fails
+          // Not JSON; keep the raw string.
         }
       }
       
-      // Try to extract additional info from the data field
       if (processed.data) {
-        // Move relevant fields to the top level for easier access
         if (processed.data.user_name && !processed.user_name) {
           processed.user_name = processed.data.user_name;
         }
@@ -360,7 +295,6 @@ export default function AdminDashboardPage() {
         }
       }
       
-      // Check 'user' field
       if (typeof processed.user === 'string') {
         try {
           processed.user = JSON.parse(processed.user);
@@ -379,18 +313,11 @@ export default function AdminDashboardPage() {
     });
   };
 
-  // Function to fetch regular user activity
-
-  // Function to fetch only recent activity (for updates)
-
-
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    // Convert to Philippines timezone (UTC+8)
+    // Fixed +8h offset for Manila (UTC+8); note toLocaleDateString still applies the browser zone.
     const date = new Date(dateString);
-    // Adjust to Philippines time by adding 8 hours
     const philippinesDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-    // Use en-US locale but with adjusted time
     return philippinesDate.toLocaleDateString('en-US', options);
   };
 
@@ -399,7 +326,6 @@ export default function AdminDashboardPage() {
       return activity.title;
     }
     
-    // Handle specific activity types
     if (activity.type === "user_verification") {
       return "User Verification";
     }
@@ -416,16 +342,13 @@ export default function AdminDashboardPage() {
       return "Profile Update";
     }
     
-    // Generic formatting for other types
     if (activity.type) {
-      // Convert snake_case to Title Case with spaces
       return activity.type
         .split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
     }
     
-    // Fallbacks based on status
     if (activity.status === "verified") {
       return "Verification Completed";
     }
@@ -444,12 +367,10 @@ export default function AdminDashboardPage() {
       return activity.description;
     }
     
-    // Try to extract user information
     const userName = activity.user_name || activity.full_name || activity.name || 
                     (activity.user && (activity.user.full_name || activity.user.name)) || 
                     (activity.data && (activity.data.user_name || activity.data.full_name || activity.data.name));
     
-    // Handle specific activity types
     if (activity.type === "user_verification") {
       if (userName) {
         return `User ${userName} was verified`;
@@ -493,12 +414,10 @@ export default function AdminDashboardPage() {
       return `A new ${docType} was uploaded`;
     }
     
-    // Check for message
     if (activity.message) {
       return activity.message;
     }
     
-    // Generic formatting with available data
     if (userName) {
       return `User: ${userName}`;
     }
@@ -507,7 +426,6 @@ export default function AdminDashboardPage() {
       return `Document ID: ${activity.document_id}`;
     }
     
-    // Status-based fallbacks
     if (activity.status === "verified") {
       return "Item was verified successfully";
     }
@@ -555,9 +473,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  // Render different dashboards based on user role
   if (!isAdminUser) {
-    // Regular user dashboard (similar to the original DashboardPage)
     return (
       <div>
         <div className="mb-6">
@@ -568,7 +484,6 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="mt-6 grid gap-5 sm:grid-cols-1 lg:grid-cols-2">
-          {/* Profile Card */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center">
@@ -597,7 +512,6 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Documents Card */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center">

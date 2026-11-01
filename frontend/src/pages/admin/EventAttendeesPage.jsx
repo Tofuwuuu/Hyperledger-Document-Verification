@@ -55,7 +55,6 @@ const EventAttendeesPage = () => {
     fetchEventAttendees();
   }, [fetchEventAttendees]);
 
-
   const handleCheckIn = async (registrationId) => {
     try {
       await checkInUser(registrationId);
@@ -87,7 +86,6 @@ const EventAttendeesPage = () => {
     try {
       setLoading(true);
       
-      // Process attendees one by one
       for (const attendeeId of selectedAttendees) {
         await checkInUser(attendeeId);
       }
@@ -124,7 +122,6 @@ const EventAttendeesPage = () => {
       return;
     }
 
-    // Create CSV content
     const headers = [
       'Name', 'Email', 'Student ID', 'Department', 'Status', 
       'Registration Date', 'Check-in Time'
@@ -147,7 +144,6 @@ const EventAttendeesPage = () => {
     
     const csvContent = csvRows.join('\n');
     
-    // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -158,9 +154,7 @@ const EventAttendeesPage = () => {
     document.body.removeChild(link);
   };
 
-  // Sort and filter attendees
   const getFilteredAndSortedAttendees = () => {
-    // Filter by status and search query
     let filtered = [...attendees];
     
     if (filterStatus !== 'all') {
@@ -179,23 +173,19 @@ const EventAttendeesPage = () => {
       });
     }
     
-    // Sort attendees
     filtered.sort((a, b) => {
       let aValue = a[sortField];
       let bValue = b[sortField];
       
-      // Handle undefined values
       if (aValue === undefined) aValue = '';
       if (bValue === undefined) bValue = '';
       
-      // For string values, use localeCompare
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         return sortDirection === 'asc' 
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
       
-      // For non-string values, use comparison operators
       return sortDirection === 'asc' 
         ? (aValue > bValue ? 1 : -1)
         : (aValue < bValue ? 1 : -1);
@@ -215,7 +205,6 @@ const EventAttendeesPage = () => {
     }
   };
 
-  // Get sort indicator arrow
   const getSortIndicator = (field) => {
     if (sortField !== field) return null;
     
@@ -251,7 +240,6 @@ const EventAttendeesPage = () => {
 
   return (
     <div className="p-6">
-      {/* Header & Navigation */}
       <div className="mb-6">
         <Link 
           to="/admin/events" 
@@ -266,7 +254,6 @@ const EventAttendeesPage = () => {
         </p>
       </div>
       
-      {/* Statistics */}
       <div className="bg-white shadow-md rounded-lg p-4 mb-6">
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="text-lg font-medium mb-3">Attendance Statistics</h3>
@@ -295,7 +282,6 @@ const EventAttendeesPage = () => {
         </div>
       </div>
       
-      {/* Controls */}
       <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
         <div className="flex flex-wrap gap-2">
           <button
@@ -369,7 +355,6 @@ const EventAttendeesPage = () => {
         </div>
       </div>
       
-      {/* Attendees Table */}
       {filteredAttendees.length === 0 ? (
         <div className="bg-white shadow-md rounded-lg p-6 text-center">
           <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />

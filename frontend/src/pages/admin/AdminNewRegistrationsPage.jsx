@@ -20,30 +20,23 @@ export default function AdminNewRegistrationsPage() {
     setError(null);
     
     try {
-      // Get the API URL
       let baseUrl = API_ORIGIN;
       baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
       const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
       
-      // Get token
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('Not authenticated');
       }
       
-      // Fetch recent users (last 30 days)
       const response = await axios.get(`${apiUrl}/admin/recent-users`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      
-      
-      // Map the department values if needed
+
       const processedUsers = response.data.map(user => {
-        // Log each user to debug
         
-        // Check for department formatting issues
         if (user.department && typeof user.department === 'string') {
           // Department mapping for standardization if needed
           const deptMap = {
@@ -53,7 +46,6 @@ export default function AdminNewRegistrationsPage() {
             "IT": "Information Technology"
           };
           
-          // Use mapped value or original if no mapping exists
           const standardDepartment = deptMap[user.department] || user.department;
           
           return {...user, department: standardDepartment};
@@ -85,7 +77,6 @@ export default function AdminNewRegistrationsPage() {
     return !hasFullName || !hasStudentId;
   };
   
-  // Filter users if needed
   const filteredUsers = filterIncomplete 
     ? users.filter(isProfileIncomplete) 
     : users;
@@ -131,7 +122,6 @@ export default function AdminNewRegistrationsPage() {
         </p>
       </div>
       
-      {/* Filter Toggle */}
       <div className="mb-6">
         <div className="flex items-center">
           <button
@@ -146,7 +136,6 @@ export default function AdminNewRegistrationsPage() {
         </div>
       </div>
       
-      {/* User List */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         {filteredUsers.length === 0 ? (
           <div className="text-center py-12">

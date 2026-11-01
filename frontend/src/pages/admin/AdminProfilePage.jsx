@@ -44,10 +44,8 @@ export default function AdminProfilePage() {
         }
       );
       
-      // Axios stores response data directly in response.data
       const data = response.data;
       
-      // Handle different name field formats
       let fullName = data.full_name || '';
       
       // If full_name is missing but we have first_name and last_name, construct it
@@ -81,7 +79,6 @@ export default function AdminProfilePage() {
         profile_picture: data.profile_picture || ''
       });
       
-      // Get the base URL without /api/v1 for profile picture
       const baseUrl = data.profile_picture ? API_URL.replace('/api/v1', '') : '';
       
       if (data.profile_picture) {
@@ -99,7 +96,6 @@ export default function AdminProfilePage() {
     fetchAdminProfile();
   }, [fetchAdminProfile]);
 
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setProfile(prevProfile => ({
@@ -107,7 +103,6 @@ export default function AdminProfilePage() {
       [name]: value
     }));
     
-    // Clear validation error for this field when user starts typing
     if (validationErrors[name]) {
       setValidationErrors(prev => ({
         ...prev,
@@ -122,7 +117,6 @@ export default function AdminProfilePage() {
     
     setProfilePicture(file);
     
-    // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewUrl(reader.result);
@@ -136,11 +130,9 @@ export default function AdminProfilePage() {
     setIsUploading(true);
     try {
       
-      // Create a FormData object to upload the file
       const formData = new FormData();
       formData.append('profile_picture', profilePicture);
       
-      // Make the profile picture upload API call
       await axios.post(
         `${API_URL}/admin/profile/upload-picture`,
         formData,
@@ -187,7 +179,6 @@ export default function AdminProfilePage() {
     
     setLoading(true);
     try {
-      // Format profile data for the API
       const profileData = {
         full_name: profile.full_name,
         email: profile.email,
@@ -199,7 +190,6 @@ export default function AdminProfilePage() {
         employee_id: profile.employee_id
       };
       
-      // Update the user using the API
       await axios.put(
         `${API_URL}/admin/profile`,
         profileData,
@@ -211,9 +201,7 @@ export default function AdminProfilePage() {
           }
         }
       );
-      
-      
-      // Update local storage user data to reflect changes
+
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       const updatedStoredUser = {
         ...storedUser,
@@ -224,10 +212,8 @@ export default function AdminProfilePage() {
       setSuccessMessage('Profile updated successfully!');
       setIsEditing(false);
       
-      // Update initialProfile to match current profile
       setInitialProfile(profile);
       
-      // Fetch updated profile from server
       fetchAdminProfile();
     } catch (error) {
       console.error('Error updating admin profile:', error);
@@ -272,7 +258,6 @@ export default function AdminProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Success and error messages */}
       {successMessage && (
         <div className="mb-4 bg-green-50 p-4 rounded-md">
           <div className="flex">
@@ -362,7 +347,6 @@ export default function AdminProfilePage() {
         
         <div className="border-t border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 py-5 sm:p-6">
-            {/* Profile Picture */}
             <div className="md:col-span-1">
               <label className="block text-sm font-medium text-gray-700">Profile Picture</label>
               <div className="mt-2 flex flex-col items-center">
@@ -407,7 +391,6 @@ export default function AdminProfilePage() {
               </div>
             </div>
             
-            {/* Personal Information */}
             <div className="md:col-span-2">
               <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
                 <div>
