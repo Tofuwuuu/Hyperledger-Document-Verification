@@ -10,7 +10,6 @@ export default function AdminDocumentUploadPage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   
-  // Form state
   const [selectedAlumni, setSelectedAlumni] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -74,14 +73,12 @@ export default function AdminDocumentUploadPage() {
       });
       
       setSuccess(true);
-      // Reset form
       setSelectedAlumni('');
       setTitle('');
       setDescription('');
       setDocumentType('');
       setFile(null);
       
-      // Reset file input
       const fileInput = document.getElementById('document-file');
       if (fileInput) {
         fileInput.value = '';
@@ -103,7 +100,6 @@ export default function AdminDocumentUploadPage() {
         </p>
       </div>
       
-      {/* Error message */}
       {error && (
         <div className="mb-6 bg-red-50 p-4 rounded-md">
           <div className="flex">
@@ -120,7 +116,6 @@ export default function AdminDocumentUploadPage() {
         </div>
       )}
       
-      {/* Success message */}
       {success && (
         <div className="mb-6 bg-green-50 p-4 rounded-md">
           <div className="flex">
@@ -139,7 +134,6 @@ export default function AdminDocumentUploadPage() {
         </div>
       )}
       
-      {/* Upload form */}
       <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 border border-gray-200 rounded-lg">
         <div>
           <label htmlFor="alumni" className="block text-sm font-medium text-gray-700">

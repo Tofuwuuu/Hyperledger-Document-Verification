@@ -16,7 +16,6 @@ const EventRegistrationsPage = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   
-  // Add registration count stats
   const [registrationStats, setRegistrationStats] = useState({
     total: 0,
     registered: 0,
@@ -34,10 +33,8 @@ const EventRegistrationsPage = () => {
         console.warn(`No registrations found for event ID: ${eventId}`);
       }
       
-      // Set registrations data
       setRegistrations(registrationsData);
       
-      // Calculate registration stats from the actual registrations
       const stats = {
         total: registrationsData.length,
         registered: registrationsData.filter(r => r.status === 'registered').length,
@@ -52,15 +49,12 @@ const EventRegistrationsPage = () => {
         console.warn(`Mismatch: Event registration_count (${eventData.registration_count}) ` +
                     `doesn't match registrations length (${registrationsData.length})`);
         
-        // Update the event data with the correct count from our registrations
         try {
-          // Create a copy of the event data with the corrected registration count
           const correctedEventData = {
             ...eventData,
             registration_count: registrationsData.length
           };
           
-          // Save the corrected event in state
           setEvent(correctedEventData);
           
           // Attempt to update the event in the database
@@ -71,7 +65,6 @@ const EventRegistrationsPage = () => {
           setEvent(eventData);
         }
       } else {
-        // No mismatch, just set the event data as is
         setEvent(eventData);
       }
       
@@ -84,7 +77,6 @@ const EventRegistrationsPage = () => {
     }
   }, [eventId]);
 
-
   useEffect(() => {
     if (eventId) {
       fetchEventDetails();
@@ -95,7 +87,6 @@ const EventRegistrationsPage = () => {
     try {
       await checkInUser(registrationId);
       toast.success('Attendee checked in successfully');
-      // Refresh registrations
       fetchEventDetails();
     } catch (err) {
       toast.error('Failed to check in attendee. Please try again.');
@@ -107,7 +98,6 @@ const EventRegistrationsPage = () => {
     try {
       await updateRegistrationStatus(registrationId, newStatus);
       toast.success(`Registration status updated to ${newStatus}`);
-      // Refresh registrations
       fetchEventDetails();
     } catch (err) {
       toast.error('Failed to update registration status. Please try again.');
@@ -118,14 +108,11 @@ const EventRegistrationsPage = () => {
   const handleQrScan = async (data) => {
     if (data) {
       try {
-        // Close scanner after successful scan
         setShowScanner(false);
         
-        // Check in using the QR code data
         await checkInUser(data);
         toast.success('Attendee checked in successfully via QR code');
         
-        // Refresh registrations
         fetchEventDetails();
       } catch (err) {
         toast.error('Failed to check in attendee with QR code. Please try again.');

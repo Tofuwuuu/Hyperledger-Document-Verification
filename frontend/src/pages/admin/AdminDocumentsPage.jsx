@@ -60,8 +60,7 @@ export default function AdminDocumentsPage() {
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
-  
-  
+
   const handleViewDocument = (document) => {
     setSelectedDocument(document);
     setShowDetailsModal(true);
@@ -117,7 +116,6 @@ export default function AdminDocumentsPage() {
         </p>
       </div>
       
-      {/* Status filter */}
       <div className="mb-6 flex space-x-3">
         <button
           onClick={() => setStatusFilter('all')}
@@ -263,7 +261,6 @@ export default function AdminDocumentsPage() {
         </div>
       )}
       
-      {/* Document Details Modal */}
       {showDetailsModal && selectedDocument && (
         <div className="fixed inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">

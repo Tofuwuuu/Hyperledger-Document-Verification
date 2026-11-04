@@ -18,7 +18,6 @@ const AdminEventRegistrationsPage = () => {
 
   const calculateRegistrationStats = (registrations) => {
     
-    // Default to 0 for all stats
     let stats = {
       total: 0,
       registered: 0,
@@ -26,11 +25,9 @@ const AdminEventRegistrationsPage = () => {
       cancelled: 0
     };
     
-    // Only process if we have valid registrations array
     if (Array.isArray(registrations) && registrations.length > 0) {
       stats.total = registrations.length;
       
-      // Count each status
       registrations.forEach(reg => {
         const status = reg.status?.toLowerCase() || 'registered'; // Default to registered if status is missing
         
@@ -61,7 +58,6 @@ const AdminEventRegistrationsPage = () => {
     try {
       const data = await getAllEventRegistrations();
       
-      // Ensure we have a valid array of registrations
       if (Array.isArray(data)) {
         setRegistrations(data);
         setRegistrationStats(calculateRegistrationStats(data));
@@ -93,7 +89,6 @@ const AdminEventRegistrationsPage = () => {
     }
   }, []);
 
-
   useEffect(() => {
     fetchRegistrations();
   }, [fetchRegistrations]);
@@ -102,7 +97,6 @@ const AdminEventRegistrationsPage = () => {
     try {
       await checkInUser(registrationId);
       toast.success('Attendee checked in successfully');
-      // Refresh registrations list
       fetchRegistrations();
     } catch (err) {
       toast.error('Failed to check in attendee. Please try again later.');
@@ -114,7 +108,6 @@ const AdminEventRegistrationsPage = () => {
     try {
       await updateRegistrationStatus(registrationId, newStatus);
       toast.success(`Registration status updated to ${newStatus}`);
-      // Refresh registrations list
       fetchRegistrations();
     } catch (err) {
       toast.error('Failed to update registration status. Please try again later.');
@@ -135,10 +128,8 @@ const AdminEventRegistrationsPage = () => {
       return false;
     }
     
-    // Apply status filter
     if (filterStatus === 'all') return true;
     
-    // Case-insensitive status comparison
     return registration.status?.toLowerCase() === filterStatus.toLowerCase();
   });
 
@@ -167,7 +158,6 @@ const AdminEventRegistrationsPage = () => {
         <h1 className="text-2xl font-bold">All Event Registrations</h1>
         <button
           onClick={() => {
-            // Redirect to all events page
             window.location.href = '/admin/events';
           }}
           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"

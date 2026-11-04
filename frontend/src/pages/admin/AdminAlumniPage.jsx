@@ -52,7 +52,6 @@ export default function AdminAlumniPage() {
       
       const response = await alumniService.getAllAlumni(params);
       
-      // Check if response data exists and has expected format
       if (response?.data?.results) {
         setAlumni(response.data.results);
         setTotalAlumni(response.data.total || 0);
@@ -64,7 +63,6 @@ export default function AdminAlumniPage() {
     } catch (error) {
       console.error('Error fetching alumni:', error);
       setError(error.message || 'Failed to load alumni data');
-      // Set empty data to prevent UI errors
       setAlumni([]);
       setTotalAlumni(0);
     } finally {
@@ -76,27 +74,21 @@ export default function AdminAlumniPage() {
     fetchAlumni();
   }, [fetchAlumni]);
 
-  // Fetch alumni with search parameters
-
-  // Handle search button click
   const handleSearch = () => {
     setPage(0); // Reset to first page
     fetchAlumni();
   };
   
-  // Handle enter key in search box
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       handleSearch();
     }
   };
 
-  // Extract unique programs, departments and years from alumni data
   const programs = [...new Set(alumni.map(a => a.course))].filter(Boolean);
   const departments = [...new Set(alumni.map(a => a.department))].filter(Boolean);
   const years = [...new Set(alumni.map(a => a.graduation_year))].sort((a, b) => b - a);
 
-  // Calculate number of pages
   const totalPages = Math.ceil(totalAlumni / limit);
 
   const getProfileImageUrl = (profilePicture) => {
@@ -104,12 +96,10 @@ export default function AdminAlumniPage() {
       return '/placeholder-profile.png';
     }
     
-    // If path starts with http, it's already a full URL
     if (profilePicture.startsWith('http')) {
       return profilePicture;
     }
     
-    // Otherwise, it's a relative path to the server
     const baseUrl = API_ORIGIN;
     return `${baseUrl}/${profilePicture}`;
   };
@@ -132,7 +122,6 @@ export default function AdminAlumniPage() {
         </Link>
       </div>
 
-      {/* Search and filter section */}
       <div className="bg-white shadow rounded-lg p-6 mb-8">
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="w-full md:w-2/5">
@@ -226,7 +215,6 @@ export default function AdminAlumniPage() {
         </div>
       </div>
 
-      {/* Alumni table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center h-64">
@@ -317,7 +305,6 @@ export default function AdminAlumniPage() {
           </div>
         )}
         
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
@@ -346,7 +333,6 @@ export default function AdminAlumniPage() {
                   </button>
                   
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    // Show at most 5 page buttons
                     let pageNum;
                     if (totalPages <= 5) {
                       // If 5 or fewer pages, show all

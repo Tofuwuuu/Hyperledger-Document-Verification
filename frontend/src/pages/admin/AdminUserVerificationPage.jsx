@@ -44,7 +44,6 @@ export default function AdminUserVerificationPage() {
     };
   }, [viewMode, loadUsers]);
 
-
   const removeUserFromList = (userId) => {
     setUsers((currentUsers) => currentUsers.filter((user) => user.id !== userId));
   };

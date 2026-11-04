@@ -11,24 +11,20 @@ import { prepareProfileData } from '../utils/profile-helpers';
 // Single source of truth (see `src/config.js`)
 export const API_URL = CONFIG_API_URL;
 
-// Create axios instance with default config
 export const api = axios.create({
   baseURL: API_URL,
   timeout: 30000,
-  withCredentials: true,  // Important for CORS with credentials
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest'  // Help prevent CSRF attacks
   }
 });
 
-// Add request interceptor for authentication
 api.interceptors.request.use(
   (config) => {
-    // Ensure withCredentials is always set for cross-origin requests
     config.withCredentials = true;
 
-    // Add auth header if token exists
     const token = localStorage.getItem('token');
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -42,10 +38,8 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle common errors
 api.interceptors.response.use(
   (response) => {
-    // Check for CSRF token in response headers and store it
     const csrfToken = response.headers['x-csrf-token'];
     if (csrfToken) {
       localStorage.setItem('csrf_token', csrfToken);
@@ -54,7 +48,6 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    // Debug error in development
     if (import.meta.env.MODE === 'development') {
       console.error(`❌ API Error [${error.response?.status || 'Network Error'}]`, { 
         message: error.message,
@@ -64,7 +57,6 @@ api.interceptors.response.use(
     }
 
     if (error.response) {
-      // Handle CORS errors more gracefully
       const statusCode = error.response.status;
       
       // If we get a 401, check if the token is expired
@@ -72,14 +64,12 @@ api.interceptors.response.use(
         // Handle token expiration (add refresh token logic if needed)
       }
 
-      // Add more specific error details
       error.isNetworkError = false;
       error.statusCode = statusCode;
       error.isAuthError = statusCode === 401;
       error.isForbidden = statusCode === 403;
       error.isServerError = statusCode >= 500;
     } else if (error.request) {
-      // Network error - no response received
       console.error('Network error - no response received');
       error.isNetworkError = true;
       error.message = 'Unable to connect to the server. Please check your internet connection.';
@@ -89,14 +79,11 @@ api.interceptors.response.use(
   }
 );
 
-// Generic API methods
 export const apiService = {
-  // Wrap api functions with more descriptive error handling
   get: async (url, config = {}) => {
     try {
       return await api.get(url, config);
     } catch (error) {
-      // Transform the error for better user experience
       handleApiError(error, 'GET', url);
       throw error;
     }
@@ -127,28 +114,23 @@ export const apiService = {
   },
   // Specific method for CORS-sensitive endpoints
   withCORS: async (method, url, data = null, config = {}) => {
-    
-    // Ensure we have headers
     if (!config.headers) {
       config.headers = {};
     }
     
-    // Ensure we're using the token
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Add CSRF token if available
     const csrfToken = localStorage.getItem('csrf_token');
     if (csrfToken && !config.headers['X-CSRF-Token']) {
       config.headers['X-CSRF-Token'] = csrfToken;
     }
     
-    // Create a merged config with specific CORS settings
     const mergedConfig = {
       ...config,
-      timeout: config.timeout || 15000, // Default timeout of 15 seconds
+      timeout: config.timeout || 15000,
       withCredentials: true,
       headers: {
         ...(config.headers || {}),
@@ -156,12 +138,10 @@ export const apiService = {
       }
     };
     
-    // Add the signal if provided
     if (config.signal) {
       mergedConfig.signal = config.signal;
     }
     
-    // Try the request with retries
     let retries = 0;
     const maxRetries = 2;
     
@@ -184,14 +164,12 @@ export const apiService = {
       } catch (error) {
         console.error(`API error (attempt ${retries + 1}/${maxRetries + 1}):`, error);
         
-        // Check for abort error
         if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
           console.error('Request aborted or timed out');
           error.isTimeout = true;
           throw error; // Don't retry timeouts or aborted requests
         }
         
-        // Check for CSRF errors specifically
         const isCsrfError = error.response?.data?.detail?.includes('CSRF token');
         if (isCsrfError && retries < maxRetries) {
           console.warn('CSRF error detected, will try to get a new token...');
@@ -199,7 +177,6 @@ export const apiService = {
           try {
             const tokenResponse = await api.get('/auth/csrf-token');
             if (tokenResponse.data && tokenResponse.data.csrf_token) {
-              // Update config with new token
               mergedConfig.headers['X-CSRF-Token'] = tokenResponse.data.csrf_token;
               retries++;
               await new Promise(resolve => setTimeout(resolve, 500));
@@ -210,7 +187,6 @@ export const apiService = {
           }
         }
         
-        // Check for CORS errors specifically
         const isCORSError = error.message && (
           error.message.includes('CORS') || 
           (error.response && error.response.status === 0)
@@ -219,7 +195,6 @@ export const apiService = {
         if (isCORSError && retries < maxRetries) {
           console.warn(`CORS error detected, retrying (${retries + 1}/${maxRetries})...`);
           retries++;
-          // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, 1000));
           continue;
         }
@@ -230,7 +205,6 @@ export const apiService = {
   }
 };
 
-// Helper function for consistent error handling
 function handleApiError(error, method, url, isCORSRequest = false) {
   if (error.isNetworkError) {
     console.error(`Network error detected in API call: ${error.message}`);
@@ -238,7 +212,6 @@ function handleApiError(error, method, url, isCORSRequest = false) {
     console.error(`API ${method} ${url} failed with status ${error.response.status}:`, 
       error.response.data);
       
-    // Log additional information for CORS errors
     if (isCORSRequest && !error.response.headers['access-control-allow-origin']) {
       console.error('Possible CORS error - missing Access-Control-Allow-Origin header');
     }
@@ -247,26 +220,19 @@ function handleApiError(error, method, url, isCORSRequest = false) {
   }
 }
 
-// Authentication services
 export const authService = {
   reloadUserWithFreshData: async () => {
-    
-    // Clear all caches related to user data
     localStorage.removeItem('user_verification');
     
-    // Get the token
     const { accessToken } = getAuthTokens();
     
     if (!accessToken) {
       return null;
     }
-    
-    
+
     try {
-      // Add cache-busting parameter
       const timestamp = new Date().getTime();
       
-      // Use the api instance with proper headers
       const response = await api.get(`/auth/me?t=${timestamp}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -275,7 +241,6 @@ export const authService = {
         }
       });
       
-      // Update local storage with fresh data
       const userData = response.data;
       localStorage.setItem('user', JSON.stringify(userData));
       
@@ -289,7 +254,6 @@ export const authService = {
     try {
       const response = await api.get('/auth/csrf-token');
       if (response.data && response.data.csrf_token) {
-        // Store the CSRF token for later use
         localStorage.setItem('csrf_token', response.data.csrf_token);
         return response.data.csrf_token;
       }
@@ -303,7 +267,6 @@ export const authService = {
   
   login: async (credentials) => {
     try {
-      // Extract remember flag if present
       const { remember } = credentials;
       const payload = {
         email: credentials.email,
@@ -312,15 +275,12 @@ export const authService = {
       };
       
       const loginUrl = `${API_URL}/auth/login`;
-      
-      
-      // Make the login request with JSON payload for simple auth mode.
+
       const loginResponse = await axios.post(loginUrl, payload, {
         headers: {
           'Content-Type': 'application/json',
         }
       });
-
 
       // MFA on: the password step only returns a short-lived pending token.
       if (loginResponse.data?.mfa_required && loginResponse.data?.mfa_token) {
@@ -373,11 +333,9 @@ export const authService = {
   
   register: async (userData) => {
     try {
-      
       const registerUrl = `${API_URL}/auth/register`;
-      
-      
-      // Use direct axios instance to avoid interceptor issues
+
+      // Plain axios: skip the shared interceptors for the public register call.
       const response = await axios({
         method: 'post',
         url: registerUrl,
@@ -385,7 +343,7 @@ export const authService = {
         headers: {
           'Content-Type': 'application/json'
         },
-        timeout: 10000 // 10 second timeout
+        timeout: 10000
       });
       
       return response.data;
@@ -395,10 +353,8 @@ export const authService = {
         console.error('Error response data:', error.response.data);
         console.error('Error response status:', error.response.status);
       } else if (error.request) {
-        // Request was made but no response received
         console.error('No response received:', error.request);
         
-        // For CORS and network errors, provide a more useful message
         if (error.message.includes('Network Error')) {
           error.corsError = true;
         }
@@ -414,14 +370,12 @@ export const authService = {
     }
     
     try {
-      // Ensure URL format is correct
       const apiUrlBase = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
       const refreshUrl = `${apiUrlBase}/auth/refresh`;
       
       const response = await axios.post(refreshUrl);
       
       if (response.data.access_token) {
-        // Store the refreshed tokens
         storeAuthTokens(
           {
             accessToken: response.data.access_token,
@@ -439,7 +393,6 @@ export const authService = {
   
   logout: async () => {
     try {
-      // Call logout endpoint to clear cookies
       await api.post('/auth/logout');
     } catch (error) {
       console.error('Logout API call failed:', error);
@@ -455,9 +408,7 @@ export const authService = {
     if (!accessToken) {
       return null;
     }
-    
-    
-    // For regular tokens, make the API call
+
     try {
       const response = await api.get('/auth/me');
       return response.data;
@@ -472,7 +423,6 @@ export const authService = {
       return { isAuthenticated: true, user: response.data };
     } catch (error) {
       if (error.status === 401) {
-        // Clear tokens on unauthorized
         clearAuthTokens();
       }
       return { isAuthenticated: false, user: null };
@@ -522,7 +472,6 @@ export const authService = {
     }
   },
 
-  // Security questions
   setSecurityQuestions: async (questionsData) => {
     try {
       const response = await api.post('/auth/set-security-questions', questionsData);
@@ -551,11 +500,7 @@ export const authService = {
   },
 };
 
-// Alumni services
 export const alumniService = {
-  // Existing methods...
-  
-  // Reliable methods using simplified endpoints
   createProfileReliable: async (profileData) => {
     try {
       // Normalize profile data and attach user_id before saving
@@ -577,16 +522,13 @@ export const alumniService = {
   
   updateProfileReliable: async (profileData) => {
     try {
-      // Define alumniId outside the try block so it's available in the catch block
       const alumniId = profileData.id;
       
-      // Check if alumni ID is valid
       if (!alumniId || alumniId === 'undefined') {
         console.error('Invalid or missing alumni ID:', alumniId);
         throw new Error('Alumni ID is undefined or invalid. Cannot update profile.');
       }
-      
-      
+
       const response = await api.put(`/alumni/${alumniId}/simple`, profileData);
       
       if (response.data.success) {
@@ -610,15 +552,12 @@ export const alumniService = {
     try {
       // Normalize profile data and attach user_id before saving
       const preparedData = await prepareProfileData(profileData);
-      
-      
-      // Check if profile already exists
+
       try {
         const existingProfile = await alumniService.getAlumniByUserId(preparedData.user_id);
         if (existingProfile && existingProfile.data && existingProfile.status !== 404) {
           console.warn('Alumni profile already exists for this user. Updating existing profile instead.');
           
-          // Use the existing profile ID and update it instead
           return alumniService.updateProfile({
             ...preparedData,
             id: existingProfile.data._id
@@ -628,16 +567,12 @@ export const alumniService = {
         // If there's an error checking for an existing profile, just continue with create
       }
       
-      // Try reliable endpoint first
       try {
-        const reliableResponse = await alumniService.createProfileReliable(preparedData);
-        return reliableResponse;
+        return await alumniService.createProfileReliable(preparedData);
       } catch (reliableError) {
-        // Check if the error is "profile already exists"
         if (reliableError.message && reliableError.message.includes('already exists')) {
           console.warn('Profile already exists error from reliable endpoint. Trying to get and update profile instead.');
           
-          // Try to get the existing profile and update it
           try {
             const existingProfile = await alumniService.getAlumniByUserId(preparedData.user_id);
             if (existingProfile && existingProfile.data) {
@@ -652,13 +587,10 @@ export const alumniService = {
         }
         
         console.warn('Reliable endpoint failed, falling back to standard endpoint:', reliableError.message);
-        // Fall back to standard endpoint
       }
       
-      // Standard endpoint as fallback
       try {
-        const response = await api.post('/alumni', preparedData);
-        return response;
+        return await api.post('/alumni', preparedData);
       } catch (standardError) {
         // If standard endpoint fails with 405, try again with the simplified endpoint
         if (standardError.response && standardError.response.status === 405) {
@@ -675,95 +607,52 @@ export const alumniService = {
   
   updateProfile: async (profileData) => {
     try {
-      // Try reliable endpoint first
       try {
-        const reliableResponse = await alumniService.updateProfileReliable(profileData);
-        return reliableResponse;
+        return await alumniService.updateProfileReliable(profileData);
       } catch (reliableError) {
         console.warn('Reliable endpoint failed, falling back to standard endpoint:', reliableError.message);
-        // Fall back to standard endpoint
       }
       
-    // Define alumniId outside the try block so it's available in the catch block
     const alumniId = profileData.id;
     
-      // Standard endpoint as fallback
-      // Check if alumni ID is valid
       if (!alumniId || alumniId === 'undefined') {
         console.error('Invalid or missing alumni ID:', alumniId);
         throw new Error('Alumni ID is undefined or invalid. Cannot update profile.');
       }
-      
-      
-      // Standard endpoint
-      const response = await api.put(`/alumni/${alumniId}`, profileData);
-      return response;
+
+      return await api.put(`/alumni/${alumniId}`, profileData);
     } catch (error) {
       console.error('Error updating alumni profile:', error.message);
       throw error;
     }
   },
   
-  getProfile: async (alumniId) => {
-    try {
-      return api.get(`/alumni/${alumniId}`);
-    } catch (error) {
-      console.error(`Error fetching alumni profile ${alumniId}:`, error);
-      throw error;
-    }
-  },
+  // The catch here never fired: the promise was returned un-awaited.
+  getProfile: async (alumniId) => api.get(`/alumni/${alumniId}`),
   
   getAlumniByUserId: async (userId) => {
     try {
-      
-      // Try using withCORS method which has better CORS handling
-      try {
-        const response = await apiService.withCORS('get', `/alumni/user/${userId}`);
-        return response;
-      } catch (corsError) {
-        console.warn('Error with CORS-enabled request:', corsError);
-        
-        // Fall back to direct API call
-        try {
-          return await api.get(`/alumni/user/${userId}`);
-        } catch (directError) {
-          console.error(`Error fetching alumni profile with direct call:`, directError);
-          
-          // If we get a 404, return a structured error that can be caught
-          if (directError.response && directError.response.status === 404) {
-            return {
-              status: 404,
-              statusText: 'Not Found',
-              data: null
-            };
-          }
-          
-          throw directError;
-        }
+      return await apiService.withCORS('get', `/alumni/user/${userId}`);
+    } catch (corsError) {
+      console.warn('Error with CORS-enabled request:', corsError);
+    }
+    try {
+      return await api.get(`/alumni/user/${userId}`);
+    } catch (directError) {
+      console.error(`Error fetching alumni profile for user ${userId}:`, directError);
+      // No profile yet is normal during onboarding; callers check status === 404.
+      if (directError.response?.status === 404) {
+        return { status: 404, statusText: 'Not Found', data: null };
       }
-    } catch (error) {
-      console.error(`Error fetching alumni profile for user ${userId}:`, error);
-      
-      // Don't throw if we have a 404 - this is not unexpected when creating a new profile
-      if (error.response && error.response.status === 404) {
-        return {
-          status: 404,
-          statusText: 'Not Found',
-          data: null
-        };
-      }
-      
-      throw error;
+      throw directError;
     }
   },
   
   uploadProfilePicture: async (alumniId, file) => {
     try {
-      
       const formData = new FormData();
       formData.append('profile_picture', file);
       
-      // Use direct axios instance for better debugging
       const response = await axios({
         method: 'post',
         url: `${API_URL}/alumni/${alumniId}/profile-picture`,
@@ -772,7 +661,7 @@ export const alumniService = {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        timeout: 30000 // 30 second timeout for file uploads
+        timeout: 30000
       });
       
       return response;
@@ -790,21 +679,15 @@ export const alumniService = {
   
   getAllAlumni: async (params = {}) => {
     try {
-      // Use the simplified endpoint by default since it's more reliable
-      try {
-        const simplifiedResponse = await api.get('/alumni/list', { params });
-        return simplifiedResponse;
-      } catch (listError) {
-        console.error('Simplified alumni endpoint failed:', listError);
-        
-        // Try the main endpoint as a fallback
-        const mainResponse = await api.get('/alumni', { params });
-        return mainResponse;
-      }
+      return await api.get('/alumni/list', { params });
+    } catch (listError) {
+      console.error('Simplified alumni endpoint failed:', listError);
+    }
+    try {
+      return await api.get('/alumni', { params });
     } catch (error) {
       console.error('Error fetching alumni list (all attempts failed):', error);
       
-      // Return empty results if both endpoints fail
       return {
         data: {
           results: [],
@@ -817,7 +700,6 @@ export const alumniService = {
   },
 };
 
-// Document services
 export const documentService = {
   uploadDocument: async (data) => {
     const formData = new FormData();
@@ -867,7 +749,6 @@ export const documentService = {
   },
 };
 
-// Verification services
 export const verificationService = {
   verifyDocument: async (documentId, hash) => {
     return api.post('/verification/blockchain/verify', {
@@ -885,7 +766,6 @@ export const verificationService = {
   },
   
   rejectDocument: async (documentId, reason) => {
-    // Note: This endpoint may need to be implemented in your backend
     return api.post(`/documents/${documentId}/reject`, { reason });
   },
   
@@ -908,13 +788,12 @@ export const verificationService = {
   }
 };
 
-// Admin user management services
 export const adminUserService = {
   getAllAdminUsers: async (page = 1, limit = 10, signal) => {
     try {
       return await api.get('/admin/users', { 
         params: { page, limit },
-        timeout: 30000, // Increase timeout to 30 seconds
+        timeout: 30000,
         signal
       });
     } catch (error) {
@@ -981,13 +860,11 @@ export const adminUserService = {
       return await api.post('/admin/users', userData, { timeout: 10000 });
     } catch (error) {
       console.error('Error creating admin user:', error);
-      // Include response data in error for better error handling
       if (error.response) {
         console.error('Error response data:', error.response.data);
         
         // Ensure we're not passing complex objects as error messages
         if (error.response.data && typeof error.response.data.detail === 'object') {
-          // Clone the error to avoid modifying the original axios error
           const enhancedError = new Error(
             error.response.status === 422 
               ? 'Validation failed. Please check the form fields.' 
@@ -1008,13 +885,11 @@ export const adminUserService = {
       return await api.put(`/admin/users/${userId}`, userData, { timeout: 10000 });
     } catch (error) {
       console.error(`Error updating admin user ${userId}:`, error);
-      // Include response data in error for better error handling
       if (error.response) {
         console.error('Error response data:', error.response.data);
         
         // Ensure we're not passing complex objects as error messages
         if (error.response.data && typeof error.response.data.detail === 'object') {
-          // Clone the error to avoid modifying the original axios error
           const enhancedError = new Error(
             error.response.status === 422 
               ? 'Validation failed. Please check the form fields.' 
@@ -1050,20 +925,16 @@ export const adminUserService = {
   
   getRoles: async () => {
     try {
-      // Use the same API endpoint as roleService.getAllRoles with pagination
-      const response = await api.get('/admin/roles', { 
-        params: { page: 1, limit: 100 }, // Get a large number of roles
-        timeout: 10000 
+      return await api.get('/admin/roles', {
+        params: { page: 1, limit: 100 },
+        timeout: 10000
       });
-      return response;
     } catch {
-      // Return empty array structure on error to prevent UI errors
       return { data: { items: [], meta: { total: 0, totalPages: 0 } } };
     }
   }
 };
 
-// Role management services
 export const roleService = {
   getAllRoles: async (page = 1, limit = 10, signal, retryCount = 2) => {
     try {
@@ -1073,16 +944,13 @@ export const roleService = {
         signal
       });
     } catch (error) {
-      // If we should retry and it's a network error (not abort)
+      // Retry network failures, never aborts.
       if (retryCount > 0 && error.name !== 'AbortError' && 
          (error.code === 'ECONNABORTED' || error.message.includes('Network Error'))) {
-        // Wait a short time before retrying (500ms)
         await new Promise(resolve => setTimeout(resolve, 500));
-        // Retry with one less retry attempt
         return roleService.getAllRoles(page, limit, signal, retryCount - 1);
       }
       
-      // No more retries or not a retryable error
       throw error;
     }
   },
@@ -1158,7 +1026,6 @@ export const roleService = {
   }
 };
 
-// Admin verification services
 export const adminVerificationService = {
   getVerificationRequests: async (status = 'pending') => {
     try {
@@ -1206,20 +1073,17 @@ export const adminVerificationService = {
   }
 };
 
-// Reference data services
 export const referenceService = {
   getCVSUCourses: async () => {
     return api.get('/references/courses');
   }
 };
 
-// Get Auth Token
 export const getUserToken = () => {
   const { accessToken } = getAuthTokens();
   return accessToken;
 };
 
-// Document Request services
 export const documentRequestService = {
   getAvailableDocumentTypes: async () => {
     try {
@@ -1309,7 +1173,6 @@ export const documentRequestService = {
         ? decodeURIComponent(headerFilenameMatch[1].replace(/"/g, '').trim())
         : (filename || `document-${requestId}${fallbackExtension}`);
 
-      // Create a download link
       const url = window.URL.createObjectURL(new Blob([response.data], { type: contentType }));
       const link = document.createElement('a');
       link.href = url;
@@ -1342,7 +1205,6 @@ export const documentRequestService = {
   }
 };
 
-// Admin Document Request services
 export const adminDocumentRequestService = {
   getAllDocumentRequests: async (status = null) => {
     try {
@@ -1363,19 +1225,17 @@ export const adminDocumentRequestService = {
   
   updateDocumentRequestStatus: async (requestId, status, adminNotes = null, rejectionReason = null) => {
     try {
-      const updateData = {
-        status: status
-      };
+      const update = { status };
       
       if (adminNotes) {
-        updateData.admin_notes = adminNotes;
+        update.admin_notes = adminNotes;
       }
       
       if (rejectionReason) {
-        updateData.rejection_reason = rejectionReason;
+        update.rejection_reason = rejectionReason;
       }
       
-      const response = await api.put(`/document-requests/${requestId}/update`, updateData);
+      const response = await api.put(`/document-requests/${requestId}/update`, update);
       return {
         success: true,
         data: response.data
@@ -1406,7 +1266,6 @@ export const adminDocumentRequestService = {
   }
 };
 
-// Admin Document services
 export const adminDocumentService = {
   searchDocuments: async (statusFilter = 'all') => {
     try {

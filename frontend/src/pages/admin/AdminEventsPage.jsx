@@ -37,7 +37,6 @@ const AdminEventsPage = () => {
       try {
         await deleteEvent(eventId);
         toast.success('Event deleted successfully');
-        // Refresh events list
         fetchEvents();
       } catch (err) {
         toast.error('Failed to delete event. Please try again later.');
@@ -49,13 +48,11 @@ const AdminEventsPage = () => {
   const handleGenerateQRCode = async (eventId, type = 'registration') => {
     try {
       
-      // Reset state
       setQrCodeError(null);
       setQrCodeLoading(true);
       setCurrentQRCode(null); // Reset QR code
       setShowQRModal(true);
       
-      // Find event name for display
       const event = events.find(e => e._id === eventId);
       if (!event) {
         toast.error("Event not found");
@@ -72,7 +69,6 @@ const AdminEventsPage = () => {
         // Always generate a new QR code to avoid caching issues
         qrCodeUrl = await generateEventQRCode(eventId, 'registration');
         
-        // Update the event in state with the new QR code
         setEvents(events.map(e => 
           e._id === eventId ? { ...e, qr_code_url: qrCodeUrl } : e
         ));
@@ -88,10 +84,8 @@ const AdminEventsPage = () => {
         return;
       }
       
-      // Ensure QR code URL starts with data:image
       if (!qrCodeUrl.startsWith('data:image')) {
         if (qrCodeUrl.startsWith('{') || typeof qrCodeUrl === 'object') {
-          // Try to extract from response object
           try {
             const qrObject = typeof qrCodeUrl === 'string' ? JSON.parse(qrCodeUrl) : qrCodeUrl;
             qrCodeUrl = qrObject.qr_code_url || qrObject.attendance_qr_url;
@@ -114,7 +108,6 @@ const AdminEventsPage = () => {
   const handleDownloadQRCode = () => {
     if (!currentQRCode) return;
     
-    // Create a link element
     const link = document.createElement('a');
     link.href = currentQRCode;
     link.download = `event-${qrCodeType}-qr-${currentEventName.replace(/\s+/g, '-').toLowerCase()}.png`;
@@ -301,8 +294,7 @@ const AdminEventsPage = () => {
           </table>
         </div>
       )}
-      
-      {/* QR Code Modal - Updated with better error handling and display */}
+
       {showQRModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
           <div className="relative bg-white rounded-lg shadow-lg p-6 m-4 max-w-md mx-auto">
@@ -379,7 +371,6 @@ const AdminEventsPage = () => {
                   <div>
                     <button 
                       onClick={() => {
-                        // Regenerate the QR code
                         const event = events.find(e => e.title === currentEventName);
                         if (event) {
                           handleGenerateQRCode(event._id, qrCodeType);

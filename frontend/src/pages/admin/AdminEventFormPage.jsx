@@ -30,7 +30,6 @@ const AdminEventFormPage = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      // Fetch CSRF token for form submission with retry logic
       let retryCount = 0;
       const maxRetries = 2;
       let csrfSuccess = false;
@@ -66,13 +65,11 @@ const AdminEventFormPage = () => {
         console.warn('Failed to obtain CSRF token after multiple attempts');
       }
 
-      // Load event data if editing
       if (eventId) {
         try {
           setLoading(true);
           const event = await getEventById(eventId);
           
-          // Format dates for date inputs
           const formatDateForInput = (dateString) => {
             if (!dateString) return '';
             const date = new Date(dateString);
@@ -103,13 +100,11 @@ const AdminEventFormPage = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Handle checkbox inputs
     if (type === 'checkbox') {
       setFormData({ ...formData, [name]: checked });
       return;
     }
     
-    // Handle number inputs
     if (type === 'number') {
       setFormData({ ...formData, [name]: value === '' ? '' : Number(value) });
       return;
@@ -124,23 +119,18 @@ const AdminEventFormPage = () => {
     try {
       setLoading(true);
       
-      // Helper function to convert date strings to ISO format with time
       const formatDateForAPI = (dateString) => {
         if (!dateString) return null;
-        // Set the time to noon (12:00) to avoid timezone issues
         const date = new Date(dateString + 'T12:00:00');
         return date.toISOString();
       };
       
-      // Prepare data for API
       const eventData = {
         ...formData,
-        // Convert date strings to proper ISO datetime format
         start_date: formatDateForAPI(formData.start_date),
         end_date: formatDateForAPI(formData.end_date),
         registration_deadline: formatDateForAPI(formData.registration_deadline),
         max_attendees: formData.max_attendees === '' ? null : Number(formData.max_attendees),
-        // Set empty strings to null
         image_url: formData.image_url || null,
         registration_url: formData.registration_url || null
       };
@@ -164,12 +154,10 @@ const AdminEventFormPage = () => {
         } catch (apiError) {
           console.error(`Attempt ${attempts} failed:`, apiError);
           
-          // Check if this is our final attempt
           if (attempts >= maxAttempts) {
             throw apiError; // Re-throw to be caught by outer catch block
           }
           
-          // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, 1000));
           
           // If it's a CSRF error, try to refresh the token
@@ -193,12 +181,10 @@ const AdminEventFormPage = () => {
         }
       }
       
-      // After successful API call
       navigate('/admin/events');
     } catch (err) {
       console.error(err);
       
-      // Provide specific error messages based on error type
       if (err.response?.status === 403) {
         toast.error('You don\'t have permission to perform this action. Please check if you\'re logged in as an admin.');
       } else if (err.response?.status === 401) {
